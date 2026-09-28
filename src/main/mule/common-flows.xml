@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<sub-flow name="access-token-sub-flow" doc:id="93a4e06f-c5f1-4166-a2fc-c9ce94866b54" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="c98e94bd-c939-49d3-af8c-844afb66e8ba" message="access-token-sub-flow - Start"/>
+		<until-successful maxRetries="${max.retries}" doc:name="Until Successful" doc:id="463d58e3-1e0c-43ae-852e-4a35d8366872" millisBetweenRetries="${retries.second}">
+			<http:request method="POST" doc:name="access_token" doc:id="98f20f6c-8d60-4841-9515-a5385f019a17" config-ref="HTTP_Request_configuration" path="${access.token.path}">
+				<http:body><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+---
+{
+  "client_id": p('secure::access.token.clientId'),
+  "client_secret": p('secure::access.token.clientSecret'),
+  "grant_type": "client_credentials"
+}]]]></http:body>
+			</http:request>
+		</until-successful>
+		<logger level="INFO" doc:name="End Logger" doc:id="5ed88c35-7a3b-4784-9017-b4605b8e62cc" message="access-token-sub-flow - End"/>
+	</sub-flow>
+	<sub-flow name="profile-details-sub-flow" doc:id="77c223ee-12ca-4962-a84e-71af203deaf9" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="38550c13-28ce-4b53-99a7-de1950aca103" message="profile-details-sub-flow - Start"/>
+		<try doc:name="Try" doc:id="ff17cb5d-a58f-4310-9f5d-4e7c3eb6fc2b" >
+			<http:request method="GET" doc:name="profile_details" doc:id="571c05e3-1018-4a13-bb31-e46750f312a2" config-ref="HTTP_Request_configuration" path="${anypoint.profile.path}">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.token
+}]]]></http:headers>
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="af1efc25-98a7-49c0-a49e-e68abb024102" >
+					<logger level="INFO" doc:name="Logger" doc:id="cd7d38c6-86e1-419c-95a2-d66dd6d1cc40" message="Error On Get Profile Details Requestor"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="End Logger" doc:id="b096dcce-a9f2-4d14-9314-3f863f36a27f" message="profile-details-sub-flow - End"/>
+	</sub-flow>
+	<sub-flow name="mule-flow-count-sub-flow" doc:id="002bf813-5ac5-4f21-b69c-28dc86fbd677" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="f7a5a535-44a0-4513-96e0-b4164a5e6988" message="mule-flow-count-sub-flow - Start"/>
+		<try doc:name="Try" doc:id="53974187-4587-4270-80d5-8b297bbbc045" >
+			<http:request method="POST" doc:name="mule_flow_count" doc:id="5b722c3a-8805-4c93-ae26-26530342974c" config-ref="HTTP_Request_configuration" path="${anypoint.get.usage.count}">
+			<http:body><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"query" :vars.muleQuery
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.token,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="d96f3da2-daf1-42a0-a44a-b07e24278724" >
+					<logger level="INFO" doc:name="Logger" doc:id="d359b2ee-d0fb-4788-b0c1-e33879a0b5e7" message="Error On Get Mule Flow Count Requestor"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="End Logger" doc:id="ca89e5b6-fdfe-4b03-9f04-282725a6e323" message='mule-flow-count-sub-flow - End'/>
+	</sub-flow>
+	<sub-flow name="total-vcore-usage-sub-flow" doc:id="1deb8823-0ba3-4648-9a6e-9d2520891681" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="e0b70ef1-81a4-4d6b-a947-9a980f9d9388" message="total-vcore-usage-sub-flow - Start"/>
+		<try doc:name="Try" doc:id="4e520159-b960-4c83-be00-5260202aa7f4" >
+			<http:request method="POST" doc:name="total_vcore_usage" doc:id="404f8a06-e1ca-470e-b102-1bda1eb43c0c" config-ref="HTTP_Request_configuration" path="${anypoint.get.usage.count}">
+			<http:body><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"query" :vars.vcoreQuery
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.token,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="9c913194-971c-46e2-90dc-76bd2a2aa741" >
+					<logger level="INFO" doc:name="Logger" doc:id="83ee5e65-b149-48e0-8788-e1e314d2f22f" message="Error On Mule Get Total vCore Usage Requestor"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="End Logger" doc:id="84b2909b-9a92-44fa-b8a1-af76201d9985" message="total-vcore-usage-sub-flow - End"/>
+	</sub-flow>
+	<sub-flow name="mule-message-count-sub-flow" doc:id="3991560a-55fe-443c-a28e-24dc6720c641" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="7540fd20-f97a-4aec-a9c0-8233cbad575b" message="mule-message-count-sub-flow - Start"/>
+		<try doc:name="Try" doc:id="1e62b0a2-5bfd-43ae-a368-770f1c9a3e5c" >
+			<http:request method="POST" doc:name="mule_message_count" doc:id="2a510eec-0a01-4771-a8f1-fdb6dfd204e7" config-ref="HTTP_Request_configuration" path="${anypoint.get.usage.count}">
+			<http:body><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"query" :vars.messageQuery
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.token,
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+		</http:request>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="209bee49-0262-411c-a43a-57dc9422c670" >
+					<logger level="INFO" doc:name="Logger" doc:id="2c415c86-9052-45e7-97cb-7a2cc346b966" message="Error On Mule Message Count Requestor"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="End Logger" doc:id="eaefcd02-003f-4439-a8a7-a0fa1710f66a" message="mule-message-count-sub-flow - End"/>
+	</sub-flow>
+</mule>

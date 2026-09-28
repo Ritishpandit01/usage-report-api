@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:outlook365="http://www.mulesoft.org/schema/mule/outlook365" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:tracing="http://www.mulesoft.org/schema/mule/tracing"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/tracing http://www.mulesoft.org/schema/mule/tracing/current/mule-tracing.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/outlook365 http://www.mulesoft.org/schema/mule/outlook365/current/mule-outlook365.xsd">
+	<flow name="usage-report-apiFlow" doc:id="e7d5d80a-4586-41bb-aaab-4fd1aab41ecc" >
+		<scheduler doc:name="Scheduler" doc:id="b059e766-6922-465a-8504-61fc1adf0e6d" >
+			<scheduling-strategy >
+				<cron expression="${schedular.expression}" timeZone="${schedular.timezone}"/>
+			</scheduling-strategy>
+		</scheduler>
+		<!-- [STUDIO:"Listener"]<http:listener doc:name="Listener" doc:id="0d90e5f1-2858-41fb-9524-414aa8552353" config-ref="HTTP_Listener_config" path="/usage">
+		</http:listener> [STUDIO] -->
+		<logger level="INFO" doc:name="Start Logger" doc:id="a6a4704a-863b-424d-9b28-2d18229d960a" message="Start Of usage-report-api-flow" />
+		<flow-ref doc:name="access-token" doc:id="a80acb1b-618d-4007-96cf-7553746f6ebb" name="access-token-sub-flow"/>
+		<ee:transform doc:name="token" doc:id="89082490-180c-4ef9-92a7-7210e062a82a">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="token"><![CDATA[%dw 2.0
+output application/json
+---
+"Bearer " ++ payload.access_token]]></ee:set-variable>
+				<ee:set-variable resource="dwl/formate-dateTimeStamp.dwl" variableName="dateTimeStamp" />
+			</ee:variables>
+		</ee:transform>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="c68bb24f-5314-4ab1-b7c7-5afdc443c28a">
+			<route>
+				<flow-ref doc:name="profile-details" doc:id="5d0e12a9-8f6e-4b15-b02f-9d61c6d6e7f5" name="profile-details-sub-flow"/>
+			</route>
+			<route>
+				<ee:transform doc:name="query" doc:id="161bf682-1f57-4b23-9791-844145e4f90f">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable resource="dwl/get-consumed-flows-query.dwl" variableName="muleQuery" />
+					</ee:variables>
+				</ee:transform>
+					<flow-ref doc:name="mule-flow-count" doc:id="0b86fb41-f979-40d7-a438-1e6ffdb7edfa" name="mule-flow-count-sub-flow"/>
+			</route>
+				<route>
+					<ee:transform doc:name="query" doc:id="f95a7fed-3a0a-4a9c-9040-ca9eb76f831e">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+						<ee:set-variable resource="dwl/get-mule-vcore-query.dwl" variableName="vcoreQuery" />
+						</ee:variables>
+					</ee:transform>
+					<flow-ref doc:name="total-vcore-usage" doc:id="338b960b-d8cb-46b1-b4a0-97fd81e5895c" name="total-vcore-usage-sub-flow"/>
+				</route>
+				<route>
+					<ee:transform doc:name="query" doc:id="3380901d-067f-4658-b923-eb7129eda16b">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+						<ee:set-variable resource="dwl/get-mule-message-query.dwl" variableName="messageQuery" />
+						</ee:variables>
+					</ee:transform>
+					<flow-ref doc:name="mule-message-count" doc:id="77a30a4c-4b2c-4d72-a80b-b4fe5ef5b648" name="mule-message-count-sub-flow"/>
+				</route>
+		</scatter-gather>
+		<ee:transform doc:name="percentage" doc:id="b82402a7-af00-49c1-8485-22075da04833">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable resource="dwl/plan-details.dwl" variableName="details" />
+				<ee:set-variable resource="dwl/flow-percentage.dwl" variableName="percentage" />
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="detailedLogger " doc:id="ee1bf1b8-ddda-4d79-8c76-1aab62323cc7" message="#[vars.details]" />
+		<choice doc:name="Choice" doc:id="a406d169-4aed-429c-8090-014ce392c11d">
+			<when expression="#[vars.percentage &gt; (p('usage.percentage') default 80)]">
+				<logger level="INFO" doc:name="Send Email Logger" doc:id="73382abf-9ec2-488c-9d1e-3659fa20e682" message="Mule flow consumption has reached or exceeded the configured threshold. Current flow utilization: #[vars.percentage] , Configured threshold flow: #[payload[0].payload.organization.entitlements.usageBasedPricing] flows." />
+					<ee:transform doc:name="emailData" doc:id="cca67da9-cdcc-4341-b0b3-b99dcc87e053">
+			<ee:message>
+			</ee:message>
+				<ee:variables>
+						<ee:set-variable resource="dwl/emailData.dwl" variableName="emailData" />
+				</ee:variables>
+		</ee:transform>
+				<!-- [STUDIO:"Send"]<email:send doc:name="Send" doc:id="328aff52-ac40-4cd6-b708-18437fa12ab0" config-ref="smtp.gmail.comEmail_SMTP" toAddresses='#[vars.emailData.mailActivityInput.to splitBy ","&#93;' fromAddress='#[vars.emailData.mailActivityInput.from&#93;' subject="#[vars.emailData.mailActivityInput.subject&#93;">
+					<email:body contentType="#[vars.emailData.mailActivityInput.headers.contentType&#93;">
+						<email:content ><![CDATA[#[vars.emailData.mailActivityInput.bodyElement.bodyText&#93;&#93;&#93;></email:content>
+					</email:body>
+				</email:send> [STUDIO] -->
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Flow End " doc:id="fbf1bee1-d2ba-43c7-b672-191cf0646b7c" message="Mule flow consumption is within the configured threshold. Current flow utilization: #[vars.percentage]%, Configured threshold flow: #[payload[0].payload.organization.entitlements.usageBasedPricing.muleRuntimeIntegration.flows] flows." />
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="End Logger" doc:id="924cdcfb-322c-45b9-8a57-a65f79733ff8" message="End Of usage-report-api-flow" />
+	</flow>
+</mule>
